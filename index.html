@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ردیاب کالری و پروتئین</title>
+
+<!-- 🔹 PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#111827;
+    --muted:#94a3b8;
+    --text:#e5e7eb;
+    --blue:#3b82f6;
+    --track:#1f2937;
+    --accent:#22c55e;
+    --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; padding:24px; background: radial-gradient(1200px 800px at 100% -10%, #0b1225, var(--bg)); color:var(--text); font-family:"Vazirmatn",system-ui,-apple-system,Segoe UI,Roboto,"Noto Naskh Arabic",Tahoma,Arial,sans-serif;}
+  .container{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px;}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.3px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:16px;backdrop-filter:blur(6px);}
+  .goals{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media (min-width:700px){.goals{grid-template-columns:1fr 1fr;}}
+  .progress{display:flex;flex-direction:column;gap:8px;}
+  .label-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:var(--muted);font-size:14px;}
+  .bar{position:relative;width:100%;height:16px;background:var(--track);border-radius:999px;overflow:hidden;outline:1px solid rgba(255,255,255,0.05);}
+  .fill{position:absolute;inset:0 0 0 auto;width:0%;background:linear-gradient(90deg,#60a5fa,var(--blue));box-shadow:0 0 12px rgba(59,130,246,.5) inset;border-radius:999px;transition:width .35s ease;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);}
+  .pill{padding:6px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:999px;background:rgba(255,255,255,0.03)}
+  .form{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media (min-width:520px){.form{grid-template-columns:repeat(3,1fr);}}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  label{font-size:13px;color:var(--muted)}
+  input{background:#0b1220;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 10px;font-size:16px;outline:none;}
+  input:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+  .btn{cursor:pointer;border:none;padding:12px 14px;border-radius:12px;font-size:16px;font-weight:700;}
+  .btn-primary{background:var(--blue);color:white}
+  .btn-danger{background:transparent;color:#fecaca;border:1px dashed rgba(239,68,68,.5)}
+  .footer-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+  .hint{color:var(--muted);font-size:12px}
+  .log{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px}
+  .log-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.02);}
+  .log-meta{font-size:13px;color:var(--muted)}
+  .log-nums{font-weight:700}
+  .toast{position:fixed;inset:auto 0 24px 0;display:flex;justify-content:center;pointer-events:none;}
+  .toast>div{background:linear-gradient(90deg,#16a34a,#22c55e);color:white;font-weight:900;letter-spacing:.5px;padding:14px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.35);transform:translateY(32px);opacity:0;transition:all .4s ease;}
+  .toast.show>div{transform:translateY(0);opacity:1}
+  .tiny{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>ردیاب روزانه کالری و پروتئین</h1>
+    <button id="resetBtn" class="btn btn-danger">ریست</button>
+  </div>
+
+  <div class="card">
+    <div class="goals">
+      <div class="progress">
+        <div class="label-row"><div>کالری امروز</div><div class="tiny"><span id="calorieTotal">0</span> / <span id="calorieGoal">3000</span></div></div>
+        <div class="bar"><div class="fill" id="calorieFill"></div></div>
+        <div class="stats"><span class="pill">Remaining: <b id="calorieRemain">3000</b></span><span class="pill">Progress: <b id="caloriePercent">0%</b></span></div>
+      </div>
+      <div class="progress">
+        <div class="label-row"><div>پروتئین امروز</div><div class="tiny"><span id="proteinTotal">0</span> / <span id="proteinGoal">176</span></div></div>
+        <div class="bar"><div class="fill" id="proteinFill"></div></div>
+        <div class="stats"><span class="pill">Remaining: <b id="proteinRemain">176</b></span><span class="pill">Progress: <b id="proteinPercent">0%</b></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <form id="addForm" class="form">
+      <div class="field"><label>نام وعده (اختیاری)</label><input id="mealName" type="text" placeholder="مثلاً شیک وی، چلوکباب، املت..." /></div>
+      <div class="field"><label>کالری</label><input id="calories" type="number" min="0" /></div>
+      <div class="field"><label>پروتئین</label><input id="protein" type="number" min="0" /></div>
+      <button class="btn btn-primary" type="submit" style="grid-column:1/-1">افزودن وعده</button>
+    </form>
+    <div class="footer-actions"><div class="hint">نکته: لازم نیست دقیق باشه—حدودی هم وارد کنی کمک می‌کنه.</div></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="tiny">هدف‌ها: کالری ۳۰۰۰ و پروتئین ۱۷۶. با «ریست» همه‌چیز صفر می‌شود.</div>
+</div>
+
+<div class="toast" id="toast"><div>باریکلا قهرمان! 🎉</div></div>
+
+<!-- Service Worker register -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+  });
+}
+</script>
+
+<script>
+(() => {
+  const GOALS={calories:3000,protein:176};
+  const els={
+    calorieTotal:document.getElementById('calorieTotal'),
+    proteinTotal:document.getElementById('proteinTotal'),
+    calorieRemain:document.getElementById('calorieRemain'),
+    proteinRemain:document.getElementById('proteinRemain'),
+    caloriePercent:document.getElementById('caloriePercent'),
+    proteinPercent:document.getElementById('proteinPercent'),
+    calorieFill:document.getElementById('calorieFill'),
+    proteinFill:document.getElementById('proteinFill'),
+    mealName:document.getElementById('mealName'),
+    calories:document.getElementById('calories'),
+    protein:document.getElementById('protein'),
+    log:document.getElementById('log'),
+    form:document.getElementById('addForm'),
+    resetBtn:document.getElementById('resetBtn'),
+    toast:document.getElementById('toast')
+  };
+  const KEY='nutri-tracker';let state=JSON.parse(localStorage.getItem(KEY)||'{"cal":0,"pro":0,"log":[],"celebrated":false}');
+  function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+  function fmt(n){return Math.round(n*100)/100}
+  function render(){
+    els.calorieTotal.textContent=fmt(state.cal||0);els.proteinTotal.textContent=fmt(state.pro||0);
+    let calRem=Math.max(0,GOALS.calories-(state.cal||0));let proRem=Math.max(0,GOALS.protein-(state.pro||0));
+    els.calorieRemain.textContent=fmt(calRem);els.proteinRemain.textContent=fmt(proRem);
+    let calPct=Math.min(100,(state.cal||0)/GOALS.calories*100);let proPct=Math.min(100,(state.pro||0)/GOALS.protein*100);
+    els.caloriePercent.textContent=`${Math.floor(calPct)}%`;els.proteinPercent.textContent=`${Math.floor(proPct)}%`;
+    els.calorieFill.style.width=`${calPct}%`;els.proteinFill.style.width=`${proPct}%`;
+    els.log.innerHTML='';
+    if(!state.log.length){els.log.innerHTML='<div class="tiny">هنوز چیزی وارد نکردی.</div>'}
+    else{state.log.slice().reverse().forEach(item=>{let row=document.createElement('div');row.className='log-item';row.innerHTML=`<div><div class="log-nums">${item.cal} کالری • ${item.pro} گرم پروتئین</div><div class="log-meta">${item.name||''}</div></div>`;els.log.appendChild(row)})}
+    if(!state.celebrated&&state.cal>=GOALS.calories&&state.pro>=GOALS.protein){state.celebrated=true;save();els.toast.classList.add('show');setTimeout(()=>els.toast.classList.remove('show'),2000)}
+  }
+  els.form.addEventListener('submit',e=>{e.preventDefault();let cal=+els.calories.value,pro=+els.protein.value,name=els.mealName.value;state.cal=(state.cal||0)+cal;state.pro=(state.pro||0)+pro;state.log.push({cal,pro,name});save();render();els.calories.value='';els.protein.value='';});
+  els.resetBtn.addEventListener('click',()=>{state={cal:0,pro:0,log:[],celebrated:false};save();render()});
+  render();
+})();
+</script>
+</body>
+</html>
