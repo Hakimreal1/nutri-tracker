@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ردیاب کالری و پروتئین</title>
 
-<!-- 🔹 PWA -->
+<!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,34 +14,35 @@
 
 <style>
   :root{
-    --bg:#0f172a;
-    --card:#111827;
-    --muted:#94a3b8;
-    --text:#e5e7eb;
-    --blue:#3b82f6;
-    --track:#1f2937;
-    --accent:#22c55e;
-    --danger:#ef4444;
+    --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
+    --blue:#3b82f6; --track:#1f2937; --accent:#22c55e; --danger:#ef4444;
   }
   *{box-sizing:border-box}
-  body{margin:0; padding:24px; background: radial-gradient(1200px 800px at 100% -10%, #0b1225, var(--bg)); color:var(--text); font-family:"Vazirmatn",system-ui,-apple-system,Segoe UI,Roboto,"Noto Naskh Arabic",Tahoma,Arial,sans-serif;}
+  body{
+    margin:0; padding:24px;
+    background: radial-gradient(1200px 800px at 100% -10%, #0b1225, var(--bg));
+    color:var(--text); font-family:"Vazirmatn",system-ui,-apple-system,Segoe UI,Roboto,"Noto Naskh Arabic",Tahoma,Arial,sans-serif;
+  }
   .container{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px;}
-  .header{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  .header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
   h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.3px}
-  .card{background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:16px;backdrop-filter:blur(6px);}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:16px; backdrop-filter: blur(6px);}
   .goals{display:grid;grid-template-columns:1fr;gap:12px;}
   @media (min-width:700px){.goals{grid-template-columns:1fr 1fr;}}
   .progress{display:flex;flex-direction:column;gap:8px;}
   .label-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:var(--muted);font-size:14px;}
   .bar{position:relative;width:100%;height:16px;background:var(--track);border-radius:999px;overflow:hidden;outline:1px solid rgba(255,255,255,0.05);}
-  .fill{position:absolute;inset:0 0 0 auto;width:0%;background:linear-gradient(90deg,#60a5fa,var(--blue));box-shadow:0 0 12px rgba(59,130,246,.5) inset;border-radius:999px;transition:width .35s ease;}
+  .fill{position:absolute;inset:0 0 0 auto;width:0%;background:linear-gradient(90deg,#60a5fa,var(--blue));
+        box-shadow:0 0 12px rgba(59,130,246,.5) inset;border-radius:999px;transition:width .35s ease;}
   .stats{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);}
   .pill{padding:6px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:999px;background:rgba(255,255,255,0.03)}
   .form{display:grid;grid-template-columns:1fr;gap:12px;}
   @media (min-width:520px){.form{grid-template-columns:repeat(3,1fr);}}
   .field{display:flex;flex-direction:column;gap:6px;}
   label{font-size:13px;color:var(--muted)}
-  input{background:#0b1220;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 10px;font-size:16px;outline:none;}
+  input{background:#0b1220;color:var(--text);border:1px solid rgba(255,255,255,0.08);
+        border-radius:12px;padding:12px 10px;font-size:16px;outline:none;}
   input:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(59,130,246,.15)}
   .btn{cursor:pointer;border:none;padding:12px 14px;border-radius:12px;font-size:16px;font-weight:700;}
   .btn-primary{background:var(--blue);color:white}
@@ -56,56 +57,102 @@
   .toast>div{background:linear-gradient(90deg,#16a34a,#22c55e);color:white;font-weight:900;letter-spacing:.5px;padding:14px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.35);transform:translateY(32px);opacity:0;transition:all .4s ease;}
   .toast.show>div{transform:translateY(0);opacity:1}
   .tiny{font-size:12px;color:var(--muted)}
+  /* goal settings inline inputs */
+  #goalSettings input{background:#0b1220;border:1px solid rgba(255,255,255,.08);color:var(--text)}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>ردیاب روزانه کالری و پروتئین</h1>
-    <button id="resetBtn" class="btn btn-danger">ریست</button>
-  </div>
-
-  <div class="card">
-    <div class="goals">
-      <div class="progress">
-        <div class="label-row"><div>کالری امروز</div><div class="tiny"><span id="calorieTotal">0</span> / <span id="calorieGoal">3000</span></div></div>
-        <div class="bar"><div class="fill" id="calorieFill"></div></div>
-        <div class="stats"><span class="pill">Remaining: <b id="calorieRemain">3000</b></span><span class="pill">Progress: <b id="caloriePercent">0%</b></span></div>
-      </div>
-      <div class="progress">
-        <div class="label-row"><div>پروتئین امروز</div><div class="tiny"><span id="proteinTotal">0</span> / <span id="proteinGoal">176</span></div></div>
-        <div class="bar"><div class="fill" id="proteinFill"></div></div>
-        <div class="stats"><span class="pill">Remaining: <b id="proteinRemain">176</b></span><span class="pill">Progress: <b id="proteinPercent">0%</b></span></div>
+    <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <button id="resetBtn" class="btn btn-danger" title="پاک‌سازی داده‌های امروز">ریست</button>
+      <!-- تنظیم اهداف -->
+      <div id="goalSettings" style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="goalCal" type="number" min="0" placeholder="هدف کالری" style="width:120px;padding:8px;border-radius:8px">
+        <input id="goalPro" type="number" min="0" placeholder="هدف پروتئین" style="width:120px;padding:8px;border-radius:8px">
+        <button id="saveGoals" class="btn" style="font-size:13px">ذخیره هدف</button>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <form id="addForm" class="form">
-      <div class="field"><label>نام وعده (اختیاری)</label><input id="mealName" type="text" placeholder="مثلاً شیک وی، چلوکباب، املت..." /></div>
-      <div class="field"><label>کالری</label><input id="calories" type="number" min="0" /></div>
-      <div class="field"><label>پروتئین</label><input id="protein" type="number" min="0" /></div>
-      <button class="btn btn-primary" type="submit" style="grid-column:1/-1">افزودن وعده</button>
+    <div class="goals">
+      <div class="progress" id="calorieSection">
+        <div class="label-row">
+          <div>کالری امروز</div>
+          <div class="tiny"><span id="calorieTotal">0</span> / <span id="calorieGoal">3000</span> کیلوکالری</div>
+        </div>
+        <div class="bar"><div class="fill" id="calorieFill"></div></div>
+        <div class="stats">
+          <span class="pill">باقی‌مانده: <b id="calorieRemain">3000</b></span>
+          <span class="pill">پیشرفت: <b id="caloriePercent">0%</b></span>
+        </div>
+      </div>
+
+      <div class="progress" id="proteinSection">
+        <div class="label-row">
+          <div>پروتئین امروز</div>
+          <div class="tiny"><span id="proteinTotal">0</span> / <span id="proteinGoal">176</span> گرم</div>
+        </div>
+        <div class="bar"><div class="fill" id="proteinFill"></div></div>
+        <div class="stats">
+          <span class="pill">باقی‌مانده: <b id="proteinRemain">176</b></span>
+          <span class="pill">پیشرفت: <b id="proteinPercent">0%</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <!-- فرم با فهرست غذا و ذخیره -->
+    <form id="addForm" class="form" autocomplete="off">
+      <div class="field">
+        <label for="mealName">نام غذا / وعده</label>
+        <input id="mealName" type="text" list="foodList" placeholder="مثلاً: موز، تخم‌مرغ، سینه مرغ..." />
+        <datalist id="foodList"></datalist>
+        <div class="tiny">نکته: نام غذا را شروع کن بنویس؛ اگر در فهرست باشد، کالری و پروتئین خودکار پر می‌شود.</div>
+      </div>
+
+      <div class="field">
+        <label for="calories">کالری (کیلوکالری)</label>
+        <input id="calories" inputmode="decimal" type="number" min="0" step="1" placeholder="مثلاً ۱۰۵" required />
+      </div>
+
+      <div class="field">
+        <label for="protein">پروتئین (گرم)</label>
+        <input id="protein" inputmode="decimal" type="number" min="0" step="0.1" placeholder="مثلاً ۱٫۳" required />
+      </div>
+
+      <button class="btn btn-primary" type="submit" style="grid-column: 1 / -1">افزودن به لیست</button>
+
+      <div style="display:flex;gap:8px;grid-column:1 / -1;flex-wrap:wrap">
+        <button type="button" id="autoFillBtn" class="btn" style="border:1px solid rgba(255,255,255,.15);background:transparent">⚡ پرکردن خودکار از فهرست</button>
+        <button type="button" id="saveFoodBtn" class="btn" style="border:1px solid rgba(255,255,255,.15);background:transparent">💾 ذخیره‌ی این غذا</button>
+      </div>
     </form>
-    <div class="footer-actions"><div class="hint">نکته: لازم نیست دقیق باشه—حدودی هم وارد کنی کمک می‌کنه.</div></div>
+
+    <div class="footer-actions">
+      <div class="hint">نکته: لازم نیست دقیقِ دقیق باشه—حدودی هم وارد کنی کمک می‌کنه پیشرفتت رو ببینی.</div>
+    </div>
     <div class="log" id="log"></div>
   </div>
 
-  <!-- Daily History -->
-<div class="card" id="historyCard">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <div style="font-weight:800">اطلاعات ۷ روز گذشته</div>
-    <button id="clearHistory" class="btn" style="font-size:13px;border:1px solid rgba(255,255,255,.1);background:transparent">Clear</button>
+  <!-- تاریخچه ۷ روزه -->
+  <div class="card" id="historyCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-weight:800">تاریخچه (۷ روز اخیر)</div>
+      <button id="clearHistory" class="btn" style="font-size:13px;border:1px solid rgba(255,255,255,.1);background:transparent">پاک‌کردن</button>
+    </div>
+    <div id="historyList" class="log"></div>
   </div>
-  <div id="historyList" class="log"></div>
-</div>
-  
-  <div class="tiny">هدف‌ها: کالری ۳۰۰۰ و پروتئین ۱۷۶. با «ریست» همه‌چیز صفر می‌شود.</div>
+
+  <div class="tiny">هدف‌ها قابل ویرایش هستند. با «ریست» فقط داده‌های امروز صفر می‌شود.</div>
 </div>
 
 <div class="toast" id="toast"><div>باریکلا قهرمان! 🎉</div></div>
 
-<!-- Service Worker register -->
+<!-- ثبت سرویس‌ورکر برای آفلاین -->
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -114,12 +161,35 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- اسکریپت اصلی اپ با اهداف قابل تنظیم، تاریخچه و فهرست غذا -->
 <script>
 (() => {
-  // ---- CONFIG ----
-  const GOALS = { calories: 3000, protein: 176 };
-  const STATE_KEY = 'nutri-tracker-state-v2';   // per-day live state
-  const HISTORY_KEY = 'nutri-tracker-history-v1'; // map of date -> summary
+  // ---- GOALS ----
+  const GOALS_KEY = 'nutri-tracker-goals-v1';
+  const DEFAULT_GOALS = { calories: 3000, protein: 176 };
+  function loadGoals(){ try{ return JSON.parse(localStorage.getItem(GOALS_KEY)) || DEFAULT_GOALS }catch{ return DEFAULT_GOALS } }
+  function saveGoals(g){ localStorage.setItem(GOALS_KEY, JSON.stringify(g)) }
+  let GOALS = loadGoals();
+
+  // ---- STATE & HISTORY ----
+  const STATE_KEY = 'nutri-tracker-state-v2';      // per-day live state
+  const HISTORY_KEY = 'nutri-tracker-history-v1';  // date -> summary
+
+  // ---- FOOD DB (local per device) ----
+  const FOOD_DB_KEY = 'nutri-food-db-v1';
+  const FOOD_DB_DEFAULT = {
+    'موز (۱ عدد متوسط)':                 { cal: 105, pro: 1.3 },
+    'سیب (۱ عدد متوسط)':                 { cal: 95,  pro: 0.5 },
+    'تخم‌مرغ (۱ عدد درشت)':              { cal: 78,  pro: 6   },
+    'پروتئین وی (۱ اسکوپ)':              { cal: 120, pro: 24  },
+    'سینه مرغ (۱۰۰ گرم پخته)':           { cal: 165, pro: 31  },
+    'برنج پخته (۱ پیمانه)':              { cal: 206, pro: 4.3 },
+    'شیر پرچرب (۱ لیوان)':               { cal: 149, pro: 7.7 },
+    'کوبیده گوسفندی (۱۱۰ گرم)':          { cal: 280, pro: 20  }
+  };
+  function loadFoodDB(){ try{ const r=localStorage.getItem(FOOD_DB_KEY); return r? JSON.parse(r) : { ...FOOD_DB_DEFAULT } }catch{ return { ...FOOD_DB_DEFAULT } } }
+  function saveFoodDB(db){ localStorage.setItem(FOOD_DB_KEY, JSON.stringify(db)) }
+  let FOOD_DB = loadFoodDB();
 
   // ---- EL REFS ----
   const els = {
@@ -142,51 +212,65 @@ if ('serviceWorker' in navigator) {
     toast: document.getElementById('toast'),
     historyList: document.getElementById('historyList'),
     clearHistory: document.getElementById('clearHistory'),
+    foodList: document.getElementById('foodList'),
+    autoFillBtn: document.getElementById('autoFillBtn'),
+    saveFoodBtn: document.getElementById('saveFoodBtn'),
+    goalCal: document.getElementById('goalCal'),
+    goalPro: document.getElementById('goalPro'),
+    saveGoals: document.getElementById('saveGoals'),
   };
 
   // ---- HELPERS ----
-  const todayStr = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD in local tz basis
+  const todayStr = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
   const pct = (num, den) => Math.min(100, den ? (num/den*100) : 0);
   const fmt = n => (Math.round((n ?? 0)*100)/100).toString();
 
-  const defaultState = () => ({ date: todayStr(), cal: 0, pro: 0, log: [], celebrated: false });
+  function refreshFoodList(){
+    els.foodList.innerHTML = '';
+    Object.keys(FOOD_DB).sort((a,b)=>a.localeCompare(b,'fa')).forEach(name => {
+      const opt = document.createElement('option'); opt.value = name; els.foodList.appendChild(opt);
+    });
+  }
+  refreshFoodList();
 
-  const loadState = () => {
-    try { return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState(); }
-    catch { return defaultState(); }
-  };
-  const saveState = s => localStorage.setItem(STATE_KEY, JSON.stringify(s));
+  function findFood(query){
+    if(!query) return null;
+    const q = query.trim().toLowerCase();
+    // exact
+    for(const name of Object.keys(FOOD_DB)){ if(name.toLowerCase()===q) return { name, ...FOOD_DB[name] } }
+    // substring
+    for(const name of Object.keys(FOOD_DB)){ if(name.toLowerCase().includes(q)) return { name, ...FOOD_DB[name] } }
+    return null;
+  }
+  function autoFillFromName(){
+    const pick = findFood(els.mealName.value);
+    if(!pick) return false;
+    els.calories.value = pick.cal;
+    els.protein.value = pick.pro;
+    els.mealName.value = pick.name;
+    return true;
+  }
 
-  const loadHistory = () => {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {}; }
-    catch { return {}; }
-  };
-  const saveHistory = h => localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  function defaultState(){ return { date: todayStr(), cal: 0, pro: 0, log: [], celebrated: false } }
+  function loadState(){ try{ return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState() }catch{ return defaultState() } }
+  function saveState(s){ localStorage.setItem(STATE_KEY, JSON.stringify(s)) }
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {} }catch{ return {} } }
+  function saveHistory(h){ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)) }
 
-  // Summarize a day for history
-  const summarize = (s) => {
+  function summarize(s){
     const calPct = Math.floor(pct(s.cal, GOALS.calories));
     const proPct = Math.floor(pct(s.pro, GOALS.protein));
     const met = s.cal >= GOALS.calories && s.pro >= GOALS.protein;
-    return {
-      date: s.date,
-      cal: s.cal, pro: s.pro,
-      calPct, proPct,
-      met,
-      ts: Date.now()
-    };
-  };
+    return { date: s.date, cal: s.cal, pro: s.pro, calPct, proPct, met, ts: Date.now() };
+  }
 
-  // Put yesterday into history if we rolled over
-  function rolloverIfNeeded() {
+  function rolloverIfNeeded(){
     let s = loadState();
     const today = todayStr();
-    if (s.date !== today) {
-      // Save previous day into history
+    if (s.date !== today){
       const hist = loadHistory();
       if (!hist[s.date]) hist[s.date] = summarize(s);
       saveHistory(hist);
-      // Start a new day
       s = defaultState();
       saveState(s);
     }
@@ -196,11 +280,13 @@ if ('serviceWorker' in navigator) {
   // ---- INIT ----
   els.calorieGoal.textContent = GOALS.calories;
   els.proteinGoal.textContent = GOALS.protein;
+  els.goalCal.value = GOALS.calories;
+  els.goalPro.value = GOALS.protein;
 
   let state = rolloverIfNeeded();
 
   // ---- RENDER ----
-  function render() {
+  function render(){
     // totals
     els.calorieTotal.textContent = fmt(state.cal);
     els.proteinTotal.textContent = fmt(state.pro);
@@ -219,7 +305,7 @@ if ('serviceWorker' in navigator) {
 
     // log
     els.log.innerHTML = '';
-    if (!state.log.length) {
+    if (!state.log.length){
       const empty = document.createElement('div');
       empty.className = 'tiny';
       empty.textContent = 'هنوز چیزی وارد نکردی.';
@@ -237,7 +323,9 @@ if ('serviceWorker' in navigator) {
         del.style.cssText = 'background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,.35);font-size:13px';
         del.textContent = 'حذف';
         del.onclick = () => {
-          state.cal -= item.cal; state.pro -= item.pro;
+          if (!confirm('آیا مطمئنی می‌خوای این مورد حذف شود؟')) return;
+          state.cal -= item.cal;
+          state.pro -= item.pro;
           state.log = state.log.filter(x => x.id !== item.id);
           if (state.cal < GOALS.calories || state.pro < GOALS.protein) state.celebrated = false;
           saveState(state); render();
@@ -248,33 +336,30 @@ if ('serviceWorker' in navigator) {
     }
 
     // celebrate
-    if (!state.celebrated && state.cal >= GOALS.calories && state.pro >= GOALS.protein) {
+    if (!state.celebrated && state.cal >= GOALS.calories && state.pro >= GOALS.protein){
       state.celebrated = true; saveState(state); showToast();
     }
 
     renderHistory();
   }
 
-  function showToast() {
+  function showToast(){
     els.toast.classList.add('show');
-    setTimeout(() => els.toast.classList.remove('show'), 2500);
+    setTimeout(()=>els.toast.classList.remove('show'), 2500);
   }
 
-  // ---- HISTORY UI ----
-  function renderHistory() {
+  function renderHistory(){
     const hist = loadHistory();
     const dates = Object.keys(hist).sort().reverse(); // newest first
-    const last7 = dates.slice(0, 7);
+    const last7 = dates.slice(0,7);
     els.historyList.innerHTML = '';
-
-    if (!last7.length) {
+    if (!last7.length){
       const empty = document.createElement('div');
       empty.className = 'tiny';
-      empty.textContent = 'No previous days yet.';
+      empty.textContent = 'هنوز روز قبلی ثبت نشده.';
       els.historyList.appendChild(empty);
       return;
     }
-
     last7.forEach(d => {
       const h = hist[d];
       const row = document.createElement('div');
@@ -283,9 +368,9 @@ if ('serviceWorker' in navigator) {
       row.innerHTML = `
         <div style="display:flex;justify-content:space-between;width:100%">
           <div style="font-weight:700">${d}</div>
-          <div class="tiny">${h.met ? '✅ Goals met' : '⏳ Not met'}</div>
+          <div class="tiny">${h.met ? '✅ اهداف تکمیل شد' : '⏳ هنوز تکمیل نشده'}</div>
         </div>
-        <div class="tiny">Calories: ${fmt(h.cal)} (${h.calPct}%) • Protein: ${fmt(h.pro)} (${h.proPct}%)</div>
+        <div class="tiny">کالری: ${fmt(h.cal)} (${h.calPct}٪) • پروتئین: ${fmt(h.pro)} (${h.proPct}٪)</div>
         <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.calPct)}%"></div></div>
         <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.proPct)}%"></div></div>
       `;
@@ -294,9 +379,9 @@ if ('serviceWorker' in navigator) {
   }
 
   // ---- EVENTS ----
-  els.form.addEventListener('submit', (e) => {
+  // فرم افزودن
+  els.form.addEventListener('submit', (e)=>{
     e.preventDefault();
-    // if day changed while page open, rollover now
     if (state.date !== todayStr()) { state = rolloverIfNeeded(); }
 
     const cal = Number(els.calories.value);
@@ -308,38 +393,82 @@ if ('serviceWorker' in navigator) {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
       name, cal, pro, time: Date.now()
     };
-    state.cal += cal;
-    state.pro += pro;
+    state.cal += cal; state.pro += pro;
     state.log.push(entry);
     saveState(state);
     render();
-    els.calories.value = ''; els.protein.value = ''; els.calories.focus();
+    els.calories.value = ''; els.protein.value = ''; els.mealName.value = '';
+    els.calories.focus();
   });
 
+  // ریست روز
   els.resetBtn.addEventListener('click', () => {
     if (!confirm('همه‌ی داده‌های امروز پاک شود؟')) return;
     state = { date: todayStr(), cal: 0, pro: 0, log: [], celebrated: false };
     saveState(state); render();
   });
 
-  if (els.clearHistory) {
+  // پاک‌کردن تاریخچه
+  if (els.clearHistory){
     els.clearHistory.addEventListener('click', () => {
-      if (!confirm('Delete all past days from history?')) return;
+      if (!confirm('همه‌ی روزهای گذشته از تاریخچه حذف شود؟')) return;
       saveHistory({}); renderHistory();
     });
   }
 
-  // Also capture today’s summary when user leaves/refreshes
-  window.addEventListener('beforeunload', () => {
-    // only store if any data today
-    if ((state.cal > 0 || state.pro > 0) && state.date === todayStr()) {
+  // فهرست غذا: auto-fill در حین تایپ
+  let autoFillTimer=null;
+  els.mealName.addEventListener('input', ()=>{
+    clearTimeout(autoFillTimer);
+    autoFillTimer = setTimeout(()=>{ autoFillFromName(); }, 200);
+  });
+  // دکمه پرکردن خودکار
+  if (els.autoFillBtn){
+    els.autoFillBtn.addEventListener('click', ()=>{
+      if(!autoFillFromName()){
+        alert('در فهرست غذاها موردی پیدا نشد. نام غذا را دقیق‌تر بنویس یا ابتدا ذخیره‌اش کن.');
+      }
+    });
+  }
+  // ذخیره غذا در DB
+  if (els.saveFoodBtn){
+    els.saveFoodBtn.addEventListener('click', ()=>{
+      const name = (els.mealName.value || '').trim();
+      const cal = Number(els.calories.value);
+      const pro = Number(els.protein.value);
+      if (!name) return alert('اول نام غذا را وارد کن.');
+      if (!(cal > 0 || pro > 0)) return alert('کالری یا پروتئین را وارد کن تا ذخیره شود.');
+      FOOD_DB[name] = { cal, pro };
+      saveFoodDB(FOOD_DB);
+      refreshFoodList();
+      alert('به فهرست غذاهای شما ذخیره شد ✅');
+    });
+  }
+
+  // تنظیم اهداف و ذخیره
+  els.saveGoals.addEventListener('click', ()=>{
+    const c = Math.max(0, +els.goalCal.value || DEFAULT_GOALS.calories);
+    const p = Math.max(0, +els.goalPro.value || DEFAULT_GOALS.protein);
+    GOALS = { calories: c, protein: p };
+    saveGoals(GOALS);
+    els.calorieGoal.textContent = GOALS.calories;
+    els.proteinGoal.textContent = GOALS.protein;
+    render();
+    alert('✅ هدف جدید ذخیره شد');
+  });
+
+  // حین خروج خلاصه امروز را وارد تاریخچه کن
+  window.addEventListener('beforeunload', ()=>{
+    if ((state.cal > 0 || state.pro > 0) && state.date === todayStr()){
       const hist = loadHistory();
       hist[state.date] = summarize(state);
       saveHistory(hist);
     }
   });
 
-  // initial paint
+  // شروع
   render();
 })();
 </script>
+</body>
+</html>
