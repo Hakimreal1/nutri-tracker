@@ -107,7 +107,7 @@
                type="text"
                list="foodList"
                placeholder="مثلاً: موز، ماهی، تخم‌مرغ..."
-               autocomplete="off"
+               autocomplete="on"
                autocapitalize="off"
                autocorrect="off"
                spellcheck="false" />
@@ -240,18 +240,13 @@ if ('serviceWorker' in navigator) {
     for(const name of Object.keys(FOOD_DB)){ if(name.toLowerCase().includes(q)) return { name, ...FOOD_DB[name] } }
     return null;
   }
-  function autoFillFromName(){
-    const pick = findFood(els.mealName.value);
-    if(!pick) return false;
-    els.calories.value = pick.cal;
-    els.protein.value = pick.pro;
-    els.mealName.value = pick.name;
-    return true;
-  }
 
+  /* ---------- STATE ---------- */
   function defaultState(){ return { date: todayStr(), cal:0, pro:0, log:[], celebrated:false } }
   function loadState(){ try{ return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState() } catch { return defaultState() } }
   function saveState(s){ localStorage.setItem(STATE_KEY, JSON.stringify(s)) }
+
+  /* ---------- HISTORY ---------- */
   function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {} } catch { return {} } }
   function saveHistory(h){ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)) }
   function summarize(s){
@@ -347,6 +342,7 @@ if ('serviceWorker' in navigator) {
   }
 
   /* ---------- EVENTS ---------- */
+  // جلوگیری از رفرش فرم + ثبت ورودی
   els.form.addEventListener('submit', e=>{
     e.preventDefault();
     if(state.date!==todayStr()) state = rolloverIfNeeded();
@@ -369,30 +365,15 @@ if ('serviceWorker' in navigator) {
     });
   }
 
-  /* ---- Auto-fill behavior (no fill while typing) ---- */
-  function optionExistsExact(val){
-    const opts = els.foodList.options;
-    for(let i=0;i<opts.length;i++){
-      if((opts[i].value||'').trim().toLowerCase() === (val||'').trim().toLowerCase()) return true;
-    }
-    return false;
-  }
-  // فقط وقتی از فهرست واقعاً انتخاب شد، با تأیید کاربر پر می‌کنیم
-  els.mealName.addEventListener('change', ()=>{
-    const v = els.mealName.value;
-    if(optionExistsExact(v)){
-      if(confirm('این مورد در فهرست موجود است. مقادیر پر شود؟')){
-        autoFillFromName();
-      }
-    }
-  });
-  // دکمه‌ی پرکردن خودکار
+  /* ---- Auto-fill: only on button click ---- */
   els.autoFillBtn.addEventListener('click', ()=>{
-    if(!autoFillFromName()){
-      alert('در فهرست غذاها موردی پیدا نشد. ابتدا ذخیره‌اش کن.');
-    }
+    const pick = findFood(els.mealName.value);
+    if(!pick){ alert('در فهرست غذاها موردی پیدا نشد. ابتدا ذخیره‌اش کن یا دقیق‌تر تایپ کن.'); return; }
+    els.calories.value = pick.cal;
+    els.protein.value  = pick.pro;
+    els.mealName.value = pick.name;
   });
-  // ذخیره‌ی غذا
+
   els.saveFoodBtn.addEventListener('click', ()=>{
     const name=(els.mealName.value||'').trim(), cal=Number(els.calories.value), pro=Number(els.protein.value);
     if(!name) return alert('اول نام غذا را وارد کن.');
@@ -400,7 +381,6 @@ if ('serviceWorker' in navigator) {
     FOOD_DB[name]={cal,pro}; saveFoodDB(FOOD_DB); refreshFoodList(); alert('به فهرست غذاهای شما ذخیره شد ✅');
   });
 
-  // تنظیم و ذخیره اهداف
   els.saveGoals.addEventListener('click', ()=>{
     const c = Math.max(0, +els.goalCal.value || DEFAULT_GOALS.calories);
     const p = Math.max(0, +els.goalPro.value || DEFAULT_GOALS.protein);
