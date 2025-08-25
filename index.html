@@ -103,9 +103,16 @@
     <form id="addForm" class="form" autocomplete="off">
       <div class="field">
         <label for="mealName">نام غذا / وعده</label>
-        <input id="mealName" type="text" list="foodList" placeholder="مثلاً: موز، تخم‌مرغ، سینه مرغ..." />
+        <input id="mealName"
+               type="text"
+               list="foodList"
+               placeholder="مثلاً: موز، ماهی، تخم‌مرغ..."
+               autocomplete="off"
+               autocapitalize="off"
+               autocorrect="off"
+               spellcheck="false" />
         <datalist id="foodList"></datalist>
-        <div class="tiny">نکته: نام غذا را شروع کن بنویس؛ اگر در فهرست باشد، کالری و پروتئین فقط با انتخاب یا دکمه پر می‌شود.</div>
+        <div class="tiny">نکته: فقط وقتی از فهرست انتخاب کنی یا دکمه «⚡ پرکردن خودکار» را بزنی، مقادیر پر می‌شوند.</div>
       </div>
 
       <div class="field">
@@ -145,6 +152,7 @@
 
 <div class="toast" id="toast"><div>باریکلا قهرمان! 🎉</div></div>
 
+<!-- Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -153,16 +161,215 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- Main logic -->
 <script>
 (() => {
-  // ... (همه‌ی منطق قبلی اهداف، تاریخچه و DB غذا)
-  // فقط این بخش auto-fill تغییر کرده:
+  /* ---------- GOALS ---------- */
+  const GOALS_KEY = 'nutri-tracker-goals-v1';
+  const DEFAULT_GOALS = { calories: 3000, protein: 176 };
+  const loadGoals = () => { try { return JSON.parse(localStorage.getItem(GOALS_KEY)) || DEFAULT_GOALS } catch { return DEFAULT_GOALS } };
+  const saveGoals = g => localStorage.setItem(GOALS_KEY, JSON.stringify(g));
+  let GOALS = loadGoals();
 
-  function autoFillFromName(){ /* همان قبلی */ }
+  /* ---------- STATE & HISTORY ---------- */
+  const STATE_KEY = 'nutri-tracker-state-v2';
+  const HISTORY_KEY = 'nutri-tracker-history-v1';
 
-  // ❌ حذف شد: autoFill هنگام تایپ
+  /* ---------- FOOD DB ---------- */
+  const FOOD_DB_KEY = 'nutri-food-db-v1';
+  const FOOD_DB_DEFAULT = {
+    'موز (۱ عدد متوسط)': { cal:105, pro:1.3 },
+    'سیب (۱ عدد متوسط)': { cal:95, pro:0.5 },
+    'تخم‌مرغ (۱ عدد درشت)': { cal:78, pro:6 },
+    'پروتئین وی (۱ اسکوپ)': { cal:120, pro:24 },
+    'سینه مرغ (۱۰۰ گرم پخته)': { cal:165, pro:31 },
+    'برنج پخته (۱ پیمانه)': { cal:206, pro:4.3 },
+    'شیر پرچرب (۱ لیوان)': { cal:149, pro:7.7 },
+    'کوبیده گوسفندی (۱۱۰ گرم)': { cal:280, pro:20 }
+  };
+  const loadFoodDB = () => { try { const r = localStorage.getItem(FOOD_DB_KEY); return r ? JSON.parse(r) : { ...FOOD_DB_DEFAULT } } catch { return { ...FOOD_DB_DEFAULT } } };
+  const saveFoodDB = db => localStorage.setItem(FOOD_DB_KEY, JSON.stringify(db));
+  let FOOD_DB = loadFoodDB();
 
-  // ✅ فقط وقتی از لیست انتخاب شود
+  /* ---------- EL REFS ---------- */
+  const els = {
+    calorieGoal: document.getElementById('calorieGoal'),
+    proteinGoal: document.getElementById('proteinGoal'),
+    calorieTotal: document.getElementById('calorieTotal'),
+    proteinTotal: document.getElementById('proteinTotal'),
+    calorieRemain: document.getElementById('calorieRemain'),
+    proteinRemain: document.getElementById('proteinRemain'),
+    caloriePercent: document.getElementById('caloriePercent'),
+    proteinPercent: document.getElementById('proteinPercent'),
+    calorieFill: document.getElementById('calorieFill'),
+    proteinFill: document.getElementById('proteinFill'),
+    form: document.getElementById('addForm'),
+    mealName: document.getElementById('mealName'),
+    calories: document.getElementById('calories'),
+    protein: document.getElementById('protein'),
+    log: document.getElementById('log'),
+    resetBtn: document.getElementById('resetBtn'),
+    toast: document.getElementById('toast'),
+    historyList: document.getElementById('historyList'),
+    clearHistory: document.getElementById('clearHistory'),
+    foodList: document.getElementById('foodList'),
+    autoFillBtn: document.getElementById('autoFillBtn'),
+    saveFoodBtn: document.getElementById('saveFoodBtn'),
+    goalCal: document.getElementById('goalCal'),
+    goalPro: document.getElementById('goalPro'),
+    saveGoals: document.getElementById('saveGoals'),
+  };
+
+  /* ---------- HELPERS ---------- */
+  const todayStr = () => new Date().toISOString().slice(0,10);
+  const pct = (n,d) => Math.min(100, d ? n/d*100 : 0);
+  const fmt = n => (Math.round((n ?? 0)*100)/100).toString();
+
+  function refreshFoodList(){
+    els.foodList.innerHTML = '';
+    Object.keys(FOOD_DB).sort((a,b)=>a.localeCompare(b,'fa')).forEach(name=>{
+      const opt = document.createElement('option'); opt.value = name; els.foodList.appendChild(opt);
+    });
+  }
+  refreshFoodList();
+
+  function findFood(query){
+    if(!query) return null;
+    const q = query.trim().toLowerCase();
+    for(const name of Object.keys(FOOD_DB)){ if(name.toLowerCase()===q) return { name, ...FOOD_DB[name] } }
+    for(const name of Object.keys(FOOD_DB)){ if(name.toLowerCase().includes(q)) return { name, ...FOOD_DB[name] } }
+    return null;
+  }
+  function autoFillFromName(){
+    const pick = findFood(els.mealName.value);
+    if(!pick) return false;
+    els.calories.value = pick.cal;
+    els.protein.value = pick.pro;
+    els.mealName.value = pick.name;
+    return true;
+  }
+
+  function defaultState(){ return { date: todayStr(), cal:0, pro:0, log:[], celebrated:false } }
+  function loadState(){ try{ return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState() } catch { return defaultState() } }
+  function saveState(s){ localStorage.setItem(STATE_KEY, JSON.stringify(s)) }
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {} } catch { return {} } }
+  function saveHistory(h){ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)) }
+  function summarize(s){
+    const calPct = Math.floor(pct(s.cal, GOALS.calories));
+    const proPct = Math.floor(pct(s.pro, GOALS.protein));
+    const met = s.cal >= GOALS.calories && s.pro >= GOALS.protein;
+    return { date:s.date, cal:s.cal, pro:s.pro, calPct, proPct, met, ts:Date.now() };
+  }
+  function rolloverIfNeeded(){
+    let s = loadState();
+    const today = todayStr();
+    if(s.date !== today){
+      const hist = loadHistory();
+      if(!hist[s.date]) hist[s.date] = summarize(s);
+      saveHistory(hist);
+      s = defaultState(); saveState(s);
+    }
+    return s;
+  }
+
+  /* ---------- INIT ---------- */
+  els.calorieGoal.textContent = GOALS.calories;
+  els.proteinGoal.textContent = GOALS.protein;
+  els.goalCal.value = GOALS.calories;
+  els.goalPro.value = GOALS.protein;
+
+  let state = rolloverIfNeeded();
+
+  /* ---------- RENDER ---------- */
+  function render(){
+    els.calorieTotal.textContent = fmt(state.cal);
+    els.proteinTotal.textContent = fmt(state.pro);
+    const calRemain = Math.max(0, GOALS.calories - state.cal);
+    const proRemain = Math.max(0, GOALS.protein - state.pro);
+    els.calorieRemain.textContent = fmt(calRemain);
+    els.proteinRemain.textContent = fmt(proRemain);
+    const calPct = pct(state.cal, GOALS.calories);
+    const proPct = pct(state.pro, GOALS.protein);
+    els.caloriePercent.textContent = `${Math.floor(calPct)}%`;
+    els.proteinPercent.textContent = `${Math.floor(proPct)}%`;
+    els.calorieFill.style.width = `${calPct}%`;
+    els.proteinFill.style.width = `${proPct}%`;
+
+    els.log.innerHTML = '';
+    if(!state.log.length){
+      const empty = document.createElement('div'); empty.className='tiny'; empty.textContent='هنوز چیزی وارد نکردی.'; els.log.appendChild(empty);
+    }else{
+      state.log.slice().reverse().forEach(item=>{
+        const row = document.createElement('div'); row.className='log-item';
+        const left = document.createElement('div');
+        left.innerHTML = `<div class="log-nums">${fmt(item.cal)} کالری • ${fmt(item.pro)} گرم پروتئین</div>
+                          <div class="log-meta">${item.name ? item.name + ' • ' : ''}${new Date(item.time).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}</div>`;
+        const del = document.createElement('button');
+        del.className='btn'; del.style.cssText='background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,.35);font-size:13px';
+        del.textContent='حذف';
+        del.onclick=()=>{
+          if(!confirm('آیا مطمئنی می‌خوای این مورد حذف شود؟')) return;
+          state.cal -= item.cal; state.pro -= item.pro;
+          state.log = state.log.filter(x=>x.id!==item.id);
+          if(state.cal<GOALS.calories || state.pro<GOALS.protein) state.celebrated=false;
+          saveState(state); render();
+        };
+        row.appendChild(left); row.appendChild(del); els.log.appendChild(row);
+      });
+    }
+
+    if(!state.celebrated && state.cal>=GOALS.calories && state.pro>=GOALS.protein){
+      state.celebrated=true; saveState(state); showToast();
+    }
+    renderHistory();
+  }
+
+  function showToast(){ els.toast.classList.add('show'); setTimeout(()=>els.toast.classList.remove('show'),2500); }
+
+  function renderHistory(){
+    const hist = loadHistory(); const dates = Object.keys(hist).sort().reverse(); const last7 = dates.slice(0,7);
+    els.historyList.innerHTML='';
+    if(!last7.length){
+      const empty=document.createElement('div'); empty.className='tiny'; empty.textContent='هنوز روز قبلی ثبت نشده.'; els.historyList.appendChild(empty); return;
+    }
+    last7.forEach(d=>{
+      const h=hist[d]; const row=document.createElement('div'); row.className='log-item'; row.style.flexDirection='column';
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <div style="font-weight:700">${d}</div>
+          <div class="tiny">${h.met ? '✅ اهداف تکمیل شد' : '⏳ هنوز تکمیل نشده'}</div>
+        </div>
+        <div class="tiny">کالری: ${fmt(h.cal)} (${h.calPct}٪) • پروتئین: ${fmt(h.pro)} (${h.proPct}٪)</div>
+        <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.calPct)}%"></div></div>
+        <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.proPct)}%"></div></div>`;
+      els.historyList.appendChild(row);
+    });
+  }
+
+  /* ---------- EVENTS ---------- */
+  els.form.addEventListener('submit', e=>{
+    e.preventDefault();
+    if(state.date!==todayStr()) state = rolloverIfNeeded();
+    const cal = Number(els.calories.value), pro = Number(els.protein.value), name=(els.mealName.value||'').trim();
+    if(!((cal>=0)&&(pro>=0)) || (cal===0 && pro===0)) return;
+    const entry = { id: crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()), name, cal, pro, time:Date.now() };
+    state.cal += cal; state.pro += pro; state.log.push(entry); saveState(state); render();
+    els.calories.value=''; els.protein.value=''; els.mealName.value=''; els.calories.focus();
+  });
+
+  els.resetBtn.addEventListener('click', ()=>{
+    if(!confirm('همه‌ی داده‌های امروز پاک شود؟')) return;
+    state = { date: todayStr(), cal:0, pro:0, log:[], celebrated:false }; saveState(state); render();
+  });
+
+  if(els.clearHistory){
+    els.clearHistory.addEventListener('click', ()=>{
+      if(!confirm('همه‌ی روزهای گذشته از تاریخچه حذف شود؟')) return;
+      saveHistory({}); renderHistory();
+    });
+  }
+
+  /* ---- Auto-fill behavior (no fill while typing) ---- */
   function optionExistsExact(val){
     const opts = els.foodList.options;
     for(let i=0;i<opts.length;i++){
@@ -170,6 +377,7 @@ if ('serviceWorker' in navigator) {
     }
     return false;
   }
+  // فقط وقتی از فهرست واقعاً انتخاب شد، با تأیید کاربر پر می‌کنیم
   els.mealName.addEventListener('change', ()=>{
     const v = els.mealName.value;
     if(optionExistsExact(v)){
@@ -178,14 +386,37 @@ if ('serviceWorker' in navigator) {
       }
     }
   });
-
-  // دکمه پرکردن خودکار
+  // دکمه‌ی پرکردن خودکار
   els.autoFillBtn.addEventListener('click', ()=>{
     if(!autoFillFromName()){
       alert('در فهرست غذاها موردی پیدا نشد. ابتدا ذخیره‌اش کن.');
     }
   });
+  // ذخیره‌ی غذا
+  els.saveFoodBtn.addEventListener('click', ()=>{
+    const name=(els.mealName.value||'').trim(), cal=Number(els.calories.value), pro=Number(els.protein.value);
+    if(!name) return alert('اول نام غذا را وارد کن.');
+    if(!(cal>0 || pro>0)) return alert('کالری یا پروتئین را وارد کن تا ذخیره شود.');
+    FOOD_DB[name]={cal,pro}; saveFoodDB(FOOD_DB); refreshFoodList(); alert('به فهرست غذاهای شما ذخیره شد ✅');
+  });
 
+  // تنظیم و ذخیره اهداف
+  els.saveGoals.addEventListener('click', ()=>{
+    const c = Math.max(0, +els.goalCal.value || DEFAULT_GOALS.calories);
+    const p = Math.max(0, +els.goalPro.value || DEFAULT_GOALS.protein);
+    GOALS = { calories:c, protein:p }; saveGoals(GOALS);
+    els.calorieGoal.textContent = GOALS.calories; els.proteinGoal.textContent = GOALS.protein; render();
+    alert('✅ هدف جدید ذخیره شد');
+  });
+
+  // هنگام خروج خلاصهٔ امروز را در تاریخچه ثبت کن
+  window.addEventListener('beforeunload', ()=>{
+    if((state.cal>0 || state.pro>0) && state.date===todayStr()){
+      const hist = loadHistory(); hist[state.date]=summarize(state); saveHistory(hist);
+    }
+  });
+
+  render();
 })();
 </script>
 </body>
