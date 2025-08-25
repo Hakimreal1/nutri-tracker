@@ -107,43 +107,230 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (() => {
-  const GOALS={calories:3000,protein:176};
-  const els={
-    calorieTotal:document.getElementById('calorieTotal'),
-    proteinTotal:document.getElementById('proteinTotal'),
-    calorieRemain:document.getElementById('calorieRemain'),
-    proteinRemain:document.getElementById('proteinRemain'),
-    caloriePercent:document.getElementById('caloriePercent'),
-    proteinPercent:document.getElementById('proteinPercent'),
-    calorieFill:document.getElementById('calorieFill'),
-    proteinFill:document.getElementById('proteinFill'),
-    mealName:document.getElementById('mealName'),
-    calories:document.getElementById('calories'),
-    protein:document.getElementById('protein'),
-    log:document.getElementById('log'),
-    form:document.getElementById('addForm'),
-    resetBtn:document.getElementById('resetBtn'),
-    toast:document.getElementById('toast')
+  // ---- CONFIG ----
+  const GOALS = { calories: 3000, protein: 176 };
+  const STATE_KEY = 'nutri-tracker-state-v2';   // per-day live state
+  const HISTORY_KEY = 'nutri-tracker-history-v1'; // map of date -> summary
+
+  // ---- EL REFS ----
+  const els = {
+    calorieGoal: document.getElementById('calorieGoal'),
+    proteinGoal: document.getElementById('proteinGoal'),
+    calorieTotal: document.getElementById('calorieTotal'),
+    proteinTotal: document.getElementById('proteinTotal'),
+    calorieRemain: document.getElementById('calorieRemain'),
+    proteinRemain: document.getElementById('proteinRemain'),
+    caloriePercent: document.getElementById('caloriePercent'),
+    proteinPercent: document.getElementById('proteinPercent'),
+    calorieFill: document.getElementById('calorieFill'),
+    proteinFill: document.getElementById('proteinFill'),
+    form: document.getElementById('addForm'),
+    mealName: document.getElementById('mealName'),
+    calories: document.getElementById('calories'),
+    protein: document.getElementById('protein'),
+    log: document.getElementById('log'),
+    resetBtn: document.getElementById('resetBtn'),
+    toast: document.getElementById('toast'),
+    historyList: document.getElementById('historyList'),
+    clearHistory: document.getElementById('clearHistory'),
   };
-  const KEY='nutri-tracker';let state=JSON.parse(localStorage.getItem(KEY)||'{"cal":0,"pro":0,"log":[],"celebrated":false}');
-  function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-  function fmt(n){return Math.round(n*100)/100}
-  function render(){
-    els.calorieTotal.textContent=fmt(state.cal||0);els.proteinTotal.textContent=fmt(state.pro||0);
-    let calRem=Math.max(0,GOALS.calories-(state.cal||0));let proRem=Math.max(0,GOALS.protein-(state.pro||0));
-    els.calorieRemain.textContent=fmt(calRem);els.proteinRemain.textContent=fmt(proRem);
-    let calPct=Math.min(100,(state.cal||0)/GOALS.calories*100);let proPct=Math.min(100,(state.pro||0)/GOALS.protein*100);
-    els.caloriePercent.textContent=`${Math.floor(calPct)}%`;els.proteinPercent.textContent=`${Math.floor(proPct)}%`;
-    els.calorieFill.style.width=`${calPct}%`;els.proteinFill.style.width=`${proPct}%`;
-    els.log.innerHTML='';
-    if(!state.log.length){els.log.innerHTML='<div class="tiny">هنوز چیزی وارد نکردی.</div>'}
-    else{state.log.slice().reverse().forEach(item=>{let row=document.createElement('div');row.className='log-item';row.innerHTML=`<div><div class="log-nums">${item.cal} کالری • ${item.pro} گرم پروتئین</div><div class="log-meta">${item.name||''}</div></div>`;els.log.appendChild(row)})}
-    if(!state.celebrated&&state.cal>=GOALS.calories&&state.pro>=GOALS.protein){state.celebrated=true;save();els.toast.classList.add('show');setTimeout(()=>els.toast.classList.remove('show'),2000)}
+
+  // ---- HELPERS ----
+  const todayStr = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD in local tz basis
+  const pct = (num, den) => Math.min(100, den ? (num/den*100) : 0);
+  const fmt = n => (Math.round((n ?? 0)*100)/100).toString();
+
+  const defaultState = () => ({ date: todayStr(), cal: 0, pro: 0, log: [], celebrated: false });
+
+  const loadState = () => {
+    try { return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState(); }
+    catch { return defaultState(); }
+  };
+  const saveState = s => localStorage.setItem(STATE_KEY, JSON.stringify(s));
+
+  const loadHistory = () => {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {}; }
+    catch { return {}; }
+  };
+  const saveHistory = h => localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+
+  // Summarize a day for history
+  const summarize = (s) => {
+    const calPct = Math.floor(pct(s.cal, GOALS.calories));
+    const proPct = Math.floor(pct(s.pro, GOALS.protein));
+    const met = s.cal >= GOALS.calories && s.pro >= GOALS.protein;
+    return {
+      date: s.date,
+      cal: s.cal, pro: s.pro,
+      calPct, proPct,
+      met,
+      ts: Date.now()
+    };
+  };
+
+  // Put yesterday into history if we rolled over
+  function rolloverIfNeeded() {
+    let s = loadState();
+    const today = todayStr();
+    if (s.date !== today) {
+      // Save previous day into history
+      const hist = loadHistory();
+      if (!hist[s.date]) hist[s.date] = summarize(s);
+      saveHistory(hist);
+      // Start a new day
+      s = defaultState();
+      saveState(s);
+    }
+    return s;
   }
-  els.form.addEventListener('submit',e=>{e.preventDefault();let cal=+els.calories.value,pro=+els.protein.value,name=els.mealName.value;state.cal=(state.cal||0)+cal;state.pro=(state.pro||0)+pro;state.log.push({cal,pro,name});save();render();els.calories.value='';els.protein.value='';});
-  els.resetBtn.addEventListener('click',()=>{state={cal:0,pro:0,log:[],celebrated:false};save();render()});
+
+  // ---- INIT ----
+  els.calorieGoal.textContent = GOALS.calories;
+  els.proteinGoal.textContent = GOALS.protein;
+
+  let state = rolloverIfNeeded();
+
+  // ---- RENDER ----
+  function render() {
+    // totals
+    els.calorieTotal.textContent = fmt(state.cal);
+    els.proteinTotal.textContent = fmt(state.pro);
+    // remaining
+    const calRemain = Math.max(0, GOALS.calories - state.cal);
+    const proRemain = Math.max(0, GOALS.protein - state.pro);
+    els.calorieRemain.textContent = fmt(calRemain);
+    els.proteinRemain.textContent = fmt(proRemain);
+    // percents
+    const calPct = pct(state.cal, GOALS.calories);
+    const proPct = pct(state.pro, GOALS.protein);
+    els.caloriePercent.textContent = `${Math.floor(calPct)}%`;
+    els.proteinPercent.textContent = `${Math.floor(proPct)}%`;
+    els.calorieFill.style.width = `${calPct}%`;
+    els.proteinFill.style.width = `${proPct}%`;
+
+    // log
+    els.log.innerHTML = '';
+    if (!state.log.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tiny';
+      empty.textContent = 'هنوز چیزی وارد نکردی.';
+      els.log.appendChild(empty);
+    } else {
+      state.log.slice().reverse().forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'log-item';
+        const left = document.createElement('div');
+        left.innerHTML =
+          `<div class="log-nums">${fmt(item.cal)} کالری • ${fmt(item.pro)} گرم پروتئین</div>
+           <div class="log-meta">${item.name ? item.name + ' • ' : ''}${new Date(item.time).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}</div>`;
+        const del = document.createElement('button');
+        del.className = 'btn';
+        del.style.cssText = 'background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,.35);font-size:13px';
+        del.textContent = 'حذف';
+        del.onclick = () => {
+          state.cal -= item.cal; state.pro -= item.pro;
+          state.log = state.log.filter(x => x.id !== item.id);
+          if (state.cal < GOALS.calories || state.pro < GOALS.protein) state.celebrated = false;
+          saveState(state); render();
+        };
+        row.appendChild(left); row.appendChild(del);
+        els.log.appendChild(row);
+      });
+    }
+
+    // celebrate
+    if (!state.celebrated && state.cal >= GOALS.calories && state.pro >= GOALS.protein) {
+      state.celebrated = true; saveState(state); showToast();
+    }
+
+    renderHistory();
+  }
+
+  function showToast() {
+    els.toast.classList.add('show');
+    setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  // ---- HISTORY UI ----
+  function renderHistory() {
+    const hist = loadHistory();
+    const dates = Object.keys(hist).sort().reverse(); // newest first
+    const last7 = dates.slice(0, 7);
+    els.historyList.innerHTML = '';
+
+    if (!last7.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tiny';
+      empty.textContent = 'No previous days yet.';
+      els.historyList.appendChild(empty);
+      return;
+    }
+
+    last7.forEach(d => {
+      const h = hist[d];
+      const row = document.createElement('div');
+      row.className = 'log-item';
+      row.style.flexDirection = 'column';
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <div style="font-weight:700">${d}</div>
+          <div class="tiny">${h.met ? '✅ Goals met' : '⏳ Not met'}</div>
+        </div>
+        <div class="tiny">Calories: ${fmt(h.cal)} (${h.calPct}%) • Protein: ${fmt(h.pro)} (${h.proPct}%)</div>
+        <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.calPct)}%"></div></div>
+        <div class="bar" style="margin-top:6px"><div class="fill" style="width:${Math.min(100,h.proPct)}%"></div></div>
+      `;
+      els.historyList.appendChild(row);
+    });
+  }
+
+  // ---- EVENTS ----
+  els.form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    // if day changed while page open, rollover now
+    if (state.date !== todayStr()) { state = rolloverIfNeeded(); }
+
+    const cal = Number(els.calories.value);
+    const pro = Number(els.protein.value);
+    const name = (els.mealName.value || '').trim();
+    if (!((cal >= 0) && (pro >= 0)) || (cal === 0 && pro === 0)) return;
+
+    const entry = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      name, cal, pro, time: Date.now()
+    };
+    state.cal += cal;
+    state.pro += pro;
+    state.log.push(entry);
+    saveState(state);
+    render();
+    els.calories.value = ''; els.protein.value = ''; els.calories.focus();
+  });
+
+  els.resetBtn.addEventListener('click', () => {
+    if (!confirm('همه‌ی داده‌های امروز پاک شود؟')) return;
+    state = { date: todayStr(), cal: 0, pro: 0, log: [], celebrated: false };
+    saveState(state); render();
+  });
+
+  if (els.clearHistory) {
+    els.clearHistory.addEventListener('click', () => {
+      if (!confirm('Delete all past days from history?')) return;
+      saveHistory({}); renderHistory();
+    });
+  }
+
+  // Also capture today’s summary when user leaves/refreshes
+  window.addEventListener('beforeunload', () => {
+    // only store if any data today
+    if ((state.cal > 0 || state.pro > 0) && state.date === todayStr()) {
+      const hist = loadHistory();
+      hist[state.date] = summarize(state);
+      saveHistory(hist);
+    }
+  });
+
+  // initial paint
   render();
 })();
 </script>
-</body>
-</html>
